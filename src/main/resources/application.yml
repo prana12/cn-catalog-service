@@ -40,5 +40,5 @@ management:
       exposure:
         include: refresh
 
-polar:
-  greeting: Welcome to the local book catalog!
+#polar:
+  #greeting: Welcome to the local book catalog!
