@@ -37,6 +37,11 @@ spring:
   #sql:
     #init:
       #mode: always
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8080/realms/PolarBookshop
 
 management:
   endpoints:
