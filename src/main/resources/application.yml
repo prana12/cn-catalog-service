@@ -14,9 +14,10 @@ spring:
   lifecycle:
     timeout-per-shutdown-phase: 15s
   config:
-    import: "optional:configserver:"
+    import: "" # When using Config Service, add "optional:configserver:"
   cloud:
     config:
+      enabled: false # When using Config Service, set to true
       uri: http://localhost:8888
       #uri: http://config-service:8888 (USE THIS FOR DOCKER IMAGE)
       request-connect-timeout: 5000 # 5s
@@ -27,6 +28,8 @@ spring:
         initial-interval: 1000 # 1s
         max-interval: 2000 # 2s
         multiplier: 1.1
+  profiles:
+    active: test-data
   datasource:
     username: user
     password: password
@@ -54,7 +57,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: flyway, health, heapdump, info, prometheus
+        include: configprops, env, flyway, health, heapdump, info, loggers, mappings, prometheus
   endpoint:
     health:
       show-details: always
