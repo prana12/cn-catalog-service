@@ -9,7 +9,7 @@ concurrency: acceptance
 env:
   OWNER: prana12
   REGISTRY: ghcr.io
-  APP_REPO: cn-catalog-service
+#  APP_REPO: cn-catalog-service
   DEPLOY_REPO: cn-polar-deployment
   VERSION: ${{ github.sha }}
   APP_NAME: catalog-service
@@ -45,7 +45,7 @@ jobs:
           repository: ${{ env.OWNER }}/${{ env.DEPLOY_REPO }}
           event-type: app_delivery
           client-payload: '{
-            "app_image": "${{ env.REGISTRY }}/${{ env.OWNER }}/${{ env.APP_REPO }}",
+            "app_image": "${{ env.REGISTRY }}/${{ env.OWNER }}/${{ env.APP_NAME }}",
             "app_name": "${{ env.APP_NAME }}",
             "app_version": "${{ env.VERSION }}"
           }'
