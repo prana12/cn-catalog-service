@@ -12,6 +12,7 @@ env:
   APP_REPO: cn-catalog-service
   DEPLOY_REPO: cn-polar-deployment
   VERSION: ${{ github.sha }}
+  APP_NAME: catalog-service
 
 jobs:
   functional:
@@ -45,6 +46,6 @@ jobs:
           event-type: app_delivery
           client-payload: '{
             "app_image": "${{ env.REGISTRY }}/${{ env.OWNER }}/${{ env.APP_REPO }}",
-            "app_name": "${{ env.APP_REPO }}",
+            "app_name": "${{ env.APP_NAME }}",
             "app_version": "${{ env.VERSION }}"
           }'
