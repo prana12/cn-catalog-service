@@ -1,0 +1,718 @@
+docker system prune -a 		to remove all unused images.
+docker system prune -a -v 	to remove all unused images and volumes.
+docker volume prune -a 		to remove all unused volumes.
+docker network prune -a 	to remove all unused networks.
+
+[02. Cloud native patterns and technologies]
+./gradlew test
+./gradlew bootRun
+./gradlew bootBuildImage
+
+docker images catalog-service:0.0.1-SNAPSHOT
+docker run --rm --name catalog-service -p 8080:8080 catalog-service:0.0.1-SNAPSHOT
+
+minikube start
+minikube image load catalog-service:0.0.1-SNAPSHOT
+minikube image ls
+minikube stop
+
+kubectl create deployment catalog-service \
+	--image=catalog-service:0.0.1-SNAPSHOT
+kubectl get deployment
+kubectl get pod
+kubectl expose deployment catalog-service \
+	--name=catalog-service \
+	--port=8080
+kubectl get service catalog-service
+kubectl port-forward service/catalog-service 8000:8080	
+http://localhost:8000/
+
+kubectl delete service catalog-service
+kubectl delete deployment catalog-service
+
+
+[03. Getting started with cloud native development]
+./gradlew test --tests BookValidationTests
+./gradlew test --tests BookServiceTest
+./gradlew test --tests CatalogServiceApplicationTests
+./gradlew test --tests BookControllerMvcTests
+./gradlew test --tests BookJsonTests
+./gradlew build
+
+choco install grype -y [run it with admin privilege to install]
+grype .
+grype version
+
+
+[04. Externalized configuration management]
+./gradlew clean build
+./gradlew bootJar
+http://localhost:9001/
+
+java -jar build/libs/catalog-service-0.0.1-SNAPSHOT.jar
+
+java -jar build/libs/catalog-service-0.0.1-SNAPSHOT.jar \
+	--polar.greeting="Welcome to the catalog from CLI"
+
+java -Dpolar.greeting="Welcome to the catalog from JVM" \
+	-jar build/libs/catalog-service-0.0.1-SNAPSHOT.jar
+
+java -Dpolar.greeting="Welcome to the catalog from JVM" \
+	-jar build/libs/catalog-service-0.0.1-SNAPSHOT.jar \
+	--polar.greeting="Welcome to the catalog from CLI"
+
+POLAR_GREETING="Welcome to the catalog from ENV" \
+	java -jar build/libs/catalog-service-0.0.1-SNAPSHOT.jar
+	
+http://localhost:8888/catalog-service/default
+http://localhost:8888/catalog-service/prod
+
+java -jar build/libs/catalog-service-0.0.1-SNAPSHOT.jar
+
+java -jar build/libs/catalog-service-0.0.1-SNAPSHOT.jar \
+	--spring.profiles.active=prod
+	
+POST http://localhost:9001/actuator/refresh
+	
+
+[05. Persisting and managing data in the cloud]
+docker run -d \
+    --name polar-postgres \
+    -e POSTGRES_USER=user \
+    -e POSTGRES_PASSWORD=password \
+    -e POSTGRES_DB=polardb_catalog \
+    -p 5432:5432 \
+    postgres:14.4
+
+docker rm -fv polar-postgres
+
+./gradlew test --tests BookRepositoryJdbcTests
+./gradlew test --tests CatalogServiceApplicationTests
+
+
+[06. Containerizing Spring Boot]
+FROM ubuntu:22.04
+RUN apt-get update && apt-get install -y default-jre
+ENTRYPOINT ["java", "--version"]
+
+docker build -t my-java-image:1.0.0 .
+docker images my-java-image
+docker run --rm my-java-image:1.0.0
+
+docker login ghcr.io [prana12 / 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]
+docker tag my-java-image:1.0.0 \
+   ghcr.io/prana12/my-java-image:1.0.0
+docker push ghcr.io/prana12/my-java-image:1.0.0
+
+docker network create catalog-network
+docker network ls
+
+docker run -d \
+   --name polar-postgres \
+   --net catalog-network \
+   -e POSTGRES_USER=user \
+   -e POSTGRES_PASSWORD=password \
+   -e POSTGRES_DB=polardb_catalog \
+   -p 5432:5432 \
+   postgres:14.4
+   
+./gradlew bootJar
+docker build -t catalog-service .
+docker build --build-arg JAR_FILE=target/*.jar -t catalog-service .
+
+docker run -d \
+   --name catalog-service \
+   --net catalog-network \
+   -p 9001:9001 \
+   -e SPRING_DATASOURCE_URL=jdbc:postgresql://polar-postgres:5432/polardb_catalog \
+   -e SPRING_PROFILES_ACTIVE=testdata \
+   catalog-service
+http://localhost:9001/books
+docker rm -f catalog-service polar-postgres
+
+docker build -t catalog-service .
+grype catalog-service
+
+./gradlew bootBuildImage
+docker rm -f catalog-service polar-postgres
+docker network rm catalog-network
+
+./gradlew bootBuildImage \
+   --imageName ghcr.io/prana12/catalog-service \
+   --publishImage \
+   -PregistryUrl=ghcr.io \
+   -PregistryUsername=prana12 \
+   -PregistryToken=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
+   
+docker-compose --version
+docker-compose up -d
+http://localhost:9001/books
+docker-compose down
+
+(config-service)
+./gradlew bootBuildImage
+grype config-service
+
+./gradlew bootBuildImage \
+   --imageName ghcr.io/prana12/config-service \
+   --publishImage \
+   -PregistryUrl=ghcr.io \
+   -PregistryUsername=prana12 \
+   -PregistryToken=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
+
+docker-compose up -d
+http://localhost:9001
+docker-compose down
+
+   
+[07. Kubernetes fundamentals for Spring Boot]
+minikube start --cpus 2 --memory 4g --driver docker --profile polar
+kubectl get nodes
+kubectl config get-contexts
+kubectl config current-context
+kubectl config use-context polar
+minikube stop --profile polar
+minikube start --profile polar
+minikube delete --profile polar
+
+kubectl apply -f services
+kubectl get pod
+./gradlew bootBuildImage
+minikube image load catalog-service --profile polar
+minikube image ls --profile polar
+kubectl apply -f k8s/deployment.yml
+kubectl get all -l app=catalog-service
+kubectl logs deployment/catalog-service
+kubectl describe pod catalog-service-7bddbcd466-2pbgr
+kubectl logs catalog-service-7bddbcd466-v62w6
+
+kubectl apply -f k8s/service.yml
+kubectl get svc -l app=catalog-service
+kubectl port-forward service/catalog-service 9001:80
+
+kubectl get pods -l app=catalog-service
+kubectl delete pod catalog-service-7bddbcd466-v62w6
+kubectl delete -f k8s
+kubectl delete -f services
+
+tilt version
+tilt up	-> http://localhost:10350/overview
+octant version
+octant	-> http://localhost:7777
+minikube stop --profile polar
+kubeval --version
+kubeval --strict -d k8s
+kubeval --ignore-missing-schemas -d k8s 
+kubeconform -v
+kubeconform --strict k8s
+kubeconform --verbose k8s
+kubeconform --strict --verbose k8s
+
+(config-service)
+./gradlew bootBuildImage
+minikube image load config-service --profile polar
+kubectl apply -f k8s
+kubectl delete -f k8s
+
+
+[08. Reactive Spring: Resilience and scalability]
+docker-compose up -d polar-postgres
+./gradlew bootRun
+docker-compose down
+
+./gradlew test --tests BookClientTests
+./gradlew test --tests OrderRepositoryR2dbcTests
+./gradlew test --tests OrderControllerWebFluxTests
+./gradlew test --tests OrderJsonTests
+./gradlew test --tests OrderRequestJsonTests
+./gradlew test --tests OrderRequestValidationTests
+./gradlew test --tests OrderServiceApplicationTests
+
+minikube start --profile polar
+./gradlew bootBuildImage
+minikube image load order-service --profile polar
+minikube image ls --profile polar
+
+#1
+docker-compose up -d
+http://localhost:9001/books
+http://localhost:9002/orders
+docker-compose down
+
+#2
+kubectl apply -f services (polar-deployment/kubernetes/platform/development)
+kubectl apply -f k8s
+
+kubectl port-forward service/config-service 8888:80
+http://localhost:8888/order-service/default
+kubectl port-forward service/catalog-service 9001:80
+http://localhost:9001/books
+kubectl port-forward service/order-service 9002:80
+
+
+[09. API gateway and circuit breakers]
+docker-compose up -d catalog-service order-service
+./gradlew bootRun
+http://localhost:9000/books
+http://localhost:9000/orders
+docker-compose down
+
+ab -n 21 -c 1 -m POST http://localhost:9000/orders
+ab -n 21 -c 1 -m GET http://localhost:9000/books
+
+docker-compose up -d polar-redis
+./gradlew test --tests EdgeServiceApplicationTests
+
+minikube start --profile polar
+./gradlew bootBuildImage
+minikube image load edge-service --profile polar
+minikube image ls --profile polar
+
+docker exec -it polar-redis redis-cli
+KEYS *
+GET polar:edge
+
+#1
+docker-compose up -d
+http://localhost:9000/books
+http://localhost:9000/orders
+docker-compose down
+
+#2
+kubectl apply -f services (polar-deployment/kubernetes/platform/development) / docker-compose up -d polar-postgres polar-redis
+kubectl apply -f k8s
+
+kubectl port-forward service/config-service 8888:80
+kubectl port-forward service/edge-service 9000:80
+kubectl port-forward service/catalog-service 9001:80
+kubectl port-forward service/order-service 9002:80
+
+
+minikube start --cpus 2 --memory 4g --driver docker --profile polar
+minikube addons enable ingress --profile polar
+kubectl get all -n ingress-nginx
+kubectl apply -f services
+kubectl get deployment
+./gradlew bootBuildImag
+minikube image load edge-service --profile polar
+minikube ip --profile polar  => 192.168.58.2
+kubectl apply -f k8s
+kubectl get ingress
+minikube tunnel --profile polar
+127.0.0.1/books OR localhost/books
+minikube stop --profile polar
+minikube delete --profile polar
+chmod +x destroy-cluster.sh
+
+
+[10. Event-driven applications and functions]
+docker-compose up -d polar-rabbitmq
+http://localhost:15672/
+docker-compose down
+
+./gradlew test --tests DispatchingFunctionsIntegrationTests
+./gradlew test --tests FunctionsStreamIntegrationTests
+docker-compose up -d polar-rabbitmq polar-postgres
+./gradlew bootRun
+
+#1
+docker-compose up -d
+http://localhost:9000/books
+http://localhost:9000/orders
+docker-compose down
+
+#2
+kubectl apply -f services (polar-deployment/kubernetes/platform/development) / docker-compose up -d polar-postgres polar-redis polar-rabbitmq
+kubectl apply -f k8s
+minikube image load config-service --profile polar
+minikube image load edge-service --profile polar
+minikube image load catalog-service --profile polar
+minikube image load order-service --profile polar
+minikube image load dispatcher-service --profile polar
+kubectl port-forward service/config-service 8888:80
+kubectl port-forward service/edge-service 9000:80
+kubectl port-forward service/catalog-service 9001:80
+kubectl port-forward service/order-service 9002:80
+kubectl port-forward service/dispatcher-service 9003:80
+
+
+[11. Security: Authentication and SPA]
+docker-compose up -d polar-redis
+./gradlew bootRun
+http://localhost:9000/books
+docker-compose up -d polar-keycloak
+winpty docker exec -it polar-keycloak bash
+docker logs -f polar-keycloak
+http://localhost:8080
+cd /opt/keycloak/bin
+
+./kcadm.sh config credentials \
+    --server http://localhost:8080 \
+    --realm master \
+    --user user \
+    --password password
+
+./kcadm.sh create realms -s realm=PolarBookshop -s enabled=true
+./kcadm.sh create roles -r PolarBookshop -s name=employee
+./kcadm.sh create roles -r PolarBookshop -s name=customer
+
+./kcadm.sh create users -r PolarBookshop \
+    -s username=isabelle \
+    -s firstName=Isabelle \
+    -s lastName=Dahl \
+    -s enabled=true
+ 
+./kcadm.sh add-roles -r PolarBookshop \
+    --uusername isabelle \
+    --rolename employee \
+    --rolename customer
+
+./kcadm.sh create users -r PolarBookshop \
+    -s username=bjorn \
+    -s firstName=Bjorn \
+    -s lastName=Vinterberg \
+    -s enabled=true
+ 
+./kcadm.sh add-roles -r PolarBookshop \
+    --uusername bjorn \
+    --rolename customer
+	
+./kcadm.sh set-password -r PolarBookshop \
+   --username isabelle --new-password password
+./kcadm.sh set-password -r PolarBookshop \
+   --username bjorn --new-password password
+
+exit
+
+
+./kcadm.sh create clients -r PolarBookshop \
+    -s clientId=edge-service \
+    -s enabled=true \
+    -s publicClient=false \
+    -s secret=polar-keycloak-secret \
+    -s 'redirectUris=["http://localhost:9000",
+"http://localhost:9000/login/oauth2/code/*"]'
+
+docker-compose up -d polar-redis polar-keycloak
+http://localhost:9000
+http://localhost:9000/user
+http://localhost:9000/logout
+
+Chapter11: Integrating Spring Security with SPAs
+docker-compose up -d polar-ui polar-redis polar-keycloak
+
+
+./gradlew test --tests UserControllerTests
+./gradlew test --tests SecurityConfigTests
+
+
+[12. Security: Authorization and auditing]
+docker-compose up -d polar-keycloak
+docker-compose down
+
+./gradlew test --tests UserControllerTests
+
+docker-compose up -d polar-ui polar-keycloak polar-redis polar-postgres
+./gradlew bootRun
+http://localhost:9000
+
+./gradlew test --tests BookControllerMvcTests
+./gradlew test --tests CatalogServiceApplicationTests
+
+
+docker-compose up -d polar-ui polar-keycloak polar-redis \
+   polar-rabbitmq polar-postgres
+
+./gradlew bootRun
+http://localhost:9000   
+   
+./gradlew test --tests OrderControllerWebFluxTests
+
+
+./gradlew test --tests BookRepositoryJdbcTests
+./gradlew test --tests OrderRepositoryR2dbcTests
+
+
+[13. Observability and monitoring]
+docker-compose up -d grafana
+./gradlew bootBuildImage
+docker-compose up -d catalog-service
+http://localhost:9001/books
+http://localhost:3000
+docker-compose down
+
+docker-compose up -d config-service polar-postgres polar-keycloak
+./gradlew bootRun
+http://localhost:9001/actuator/health
+http://localhost:9001/actuator/health/liveness
+http://localhost:9001/actuator/health/readiness
+
+Metrics and monitoring with Spring Boot Actuator, Prometheus, and Grafana
+docker-compose up -d polar-keycloak polar-postgres
+http://localhost:9001/actuator/metrics
+http://localhost:9001/actuator/prometheus
+
+http://localhost:9001/actuator/prometheus \
+   'Accept:application/openmetrics-text; version=1.0.0; charset=utf-8'
+
+docker-compose up -d grafana
+./gradlew bootBuildImage
+docker-compose up -d catalog-service
+http://localhost:9001/books
+http://localhost:3000
+jvm_memory_used_bytes{application="catalog-service"}
+
+docker-compose up -d grafana
+docker-compose up -d catalog-service
+http://localhost:9001/books
+docker logs catalog-service
+docker-compose up -d edge-service
+http://localhost:9000/books
+
+http://localhost:3000
+http://localhost:9001/actuator/flyway
+http://localhost:9001/actuator/info
+http://localhost:9001/actuator/heapdump <Java Flight Recorder> <jProfiler> / <VisualVM> <JDK Mission Control>
+
+
+[14. COnfiguration and secrets management]
+./create-cluster.sh
+kubectl get deploy
+kubectl apply -f k8s/configmap.yml
+kubectl get cm -l app=catalog-service
+./gradlew bootBuildImage
+minikube image load catalog-service --profile polar
+kubectl apply -f k8s/deployment.yml -f k8s/service.yml
+kubectl get deploy -l app=catalog-service
+kubectl port-forward service/catalog-service 9001:80
+http://localhost:9001/
+http://localhost:9001/books
+
+kubectl create secret generic \
+    test-credentials \
+    --from-literal=test.username=user \
+    --from-literal=test.password=password
+kubectl get secret test-credentials
+kubectl get secret test-credentials -o yaml
+echo 'cGFzc3dvcmQ=' | base64 --decode
+
+kubectl apply -k k8s
+kubectl port-forward service/catalog-service 9001:80
+http://localhost:9001/
+kubectl get cm -l app=catalog-service
+
+kustomize edit set image \
+   catalog-service=ghcr.io/prana12/catalog-service:latest
+kubectl apply -k . (kubectl delete -k .)
+kubectl logs deployment/catalog-service
+kubectl port-forward service/catalog-service 9001:80
+kubectl get pod -l app=catalog-service
+kubectl get pods -l app=catalog-service --watch
+./destroy-cluster.sh
+
+
+[15. Continuous delivery and GitOps]
+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
+
+kustomize edit set image \
+   catalog-service=ghcr.io/<your_github_username>/catalog-service:<sha>
+kubectl apply -k .
+kubectl get pods -l app=catalog-service --watch
+kubectl logs deployment/catalog-service   
+kubectl port-forward service/catalog-service 9001:80
+http://localhost:9001/
+kubectl delete -k .
+
+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
+
+'s/ref=[a-z0-9]*/ref=TEST/'
+'s/newTag: [a-z0-9]*/newTag: TEST/'
+'s/newTag: [a-z0-9]*/newTag: TEST/;s/ref=[a-z0-9]*/ref=TEST/'
+
+'s/newTag: [a-z0-9]*/newTag: ${{ env.APP_VERSION }}/;s/ref=[a-z0-9]*/ref=${{ env.APP_VERSION }}/'
+
+Chapter15: Continuous deployment with GitOps
+./create-cluster.sh
+kubectl get deploy
+chmod +x deploy.sh (argocd)
+./deploy.sh
+
+kubectl -n argocd get secret argocd-initial-admin-secret \
+   -o jsonpath="{.data.password}" | base64 -d; echo
+kubectl -n argocd get service argocd-server
+argocd login <argocd-external-ip>
+
+admin/cipwdTVP2rw--5F5
+kubectl port-forward svc/argocd-server 8080:443 -n argocd
+kubectl -n argocd port-forward service/argocd-server 10000:80
+http://localhost:10000/
+
+(#1 secret -> polar-keycloak-client-credentials)
+kubectl create secret generic polar-postgres-catalog-credentials \
+   --from-literal=spring.datasource.url=jdbc:postgresql://polar-postgres:5432/polardb_catalog \
+   --from-literal=spring.datasource.username=user \
+   --from-literal=spring.datasource.password=password
+
+kubectl get secret polar-postgres-catalog-credentials -o yaml
+echo 'cGFzc3dvcmQ=' | base64 --decode
+
+(#2 secret -> keycloak-issuer-resourceserver-secret)
+SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=http://host.docker.internal:8080/realms/PolarBookshop
+spring.security.oauth2.resourceserver.jwt.issuer-uri: http://polar-keycloak/realms/PolarBookshop
+
+kubectl create secret generic keycloak-issuer-resourceserver-secret \
+   --from-literal=spring.security.oauth2.resourceserver.jwt.issuer-uri=http://polar-keycloak/realms/PolarBookshop
+
+
+argocd app create catalog-service \
+  --repo https://github.com/prana12/cn-polar-deployment.git \
+  --path kubernetes/applications/catalog-service/production \
+  --dest-server https://kubernetes.default.svc \
+  --dest-namespace default \
+  --sync-policy auto \
+  --auto-prune
+
+argocd app get catalog-service
+kubectl port-forward service/catalog-service 9001:80
+http://localhost:9001/
+
+minikube start --cpus 2 --memory 4g --driver docker --profile polar
+minikube stop --profile polar
+minikube start --profile polar
+minikube delete --profile polar
+  
+[#dispatcher-service]
+polar-rabbitmq-credentials
+./deploy.sh
+kubectl get secrets polar-rabbitmq-credentials
+Username: default_user_evD1PZQJU7oV737DlEs
+Password: Unds5qrucUVcIpcdKmvUT--sOkyD1s4z
+
+
+[#edge-service]
+polar-redis-credentials
+polar-keycloak-client-credentials
+keycloak-issuer-client-secret
+
+kubectl create secret generic polar-redis-credentials \
+   --from-literal=spring.redis.host=polar-redis \
+   --from-literal=spring.redis.port=6379 \
+   --from-literal=spring.redis.username=default \
+   --from-literal=spring.redis.password=redispw \
+   --from-literal=spring.redis.ssl=true
+
+docker exec -it polar-redis
+
+SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=http://host.docker.internal:8080/realms/PolarBookshop
+spring.security.oauth2.resourceserver.jwt.issuer-uri: http://polar-keycloak/realms/PolarBookshop
+
+kubectl create secret generic keycloak-issuer-client-secret \
+   --from-literal=spring.security.oauth2.client.provider.keycloak.issuer-uri=http://polar-keycloak/realms/PolarBookshop
+
+kubectl create secret generic polar-keycloak-client-credentials \
+    --from-literal=spring.security.oauth2.client.registration.keycloak.client-secret=password
+
+kubectl get secrets polar-keycloak-client-credentials 
+
+[#order-service]
+polar-postgres-order-credentials
+polar-rabbitmq-credentials
+keycloak-issuer-resourceserver-secret
+
+kubectl create secret generic polar-postgres-order-credentials \
+   --from-literal="spring.flyway.url=jdbc:postgresql://polar-postgres:5432/polardb_order" \
+   --from-literal="spring.r2dbc.url=r2dbc:postgresql://polar-postgres:5432/polardb_order?ssl=true&sslMode=require" \
+   --from-literal=spring.r2dbc.username=user \
+   --from-literal=spring.r2dbc.password=password
+   
+
+## Running on Digital Ocean
+kubectl config get-contexts
+kubectl config current-context
+kubectl config use-context polar
+
+
+[16. Serverless, GraalVM and Knative]
+./gradlew test
+./gradlew bootRun
+
+http://localhost:9101/quotes
+http://localhost:9101/quotes/random
+http://localhost:9101/quotes/random/FANTASY
+
+sdk list java
+sdk install java 22.2.r17-grl / sdk install java 23.0.10.r17-nik / sdk install java 23.1.10.r21-nik / sdk install java 17.0.9-graalce / sdk install java 21.0.2-graalce
+sdk use java 22.2.r17-grl / sdk use java 23.0.10.r17-nik / sdk use java 23.1.10.r21-nik / sdk use java 17.0.9-graalce / sdk use java 21.0.2-graalce
+gu install native-image / gu list
+java -version
+native-image --version
+
+sdk install java 22.2.r17-grl / sdk use java 22.2.r17-grl (USED locally)
+./gradlew nativeCompile
+build/native/nativeCompile/quote-service
+http://localhost:9101/quotes/random
+./gradlew nativeTest
+./gradlew nativeRun
+
+./gradlew bootBuildImage
+docker run --rm -p 9101:9101 quote-service
+http://localhost:9101/quotes/random
+
+
+./gradlew bootRun
+http://localhost:9102/allQuotes
+http://localhost:9102/randomQuote
+echo 'FANTASY' | http :9102/genreQuote
+
+curl -H 'Accept:text/event-stream' localhost:9102
+http :9102 Accept:text/event-stream --stream [X]
+echo 'FANTASY' | http :9102/genreQuote,logQuote
+
+echo 'FANTASY' | http :9102/genreQuote \
+    ce-specversion:1.0 \
+    ce-type:quote \
+    ce-id:394
+	
+
+minikube start --profile knative
+./install-knative.sh
+kn version
+
+kn service create quote-function \
+   --image ghcr.io/prana12/quote-function \
+   --port 9102
+minikube tunnel --profile knative
+curl http://quote-function.default.127.0.0.1.sslip.io
+kn service delete quote-function
+
+kubectl apply -f knative/kservice.yml
+kubectl get ksvc
+minikube tunnel --profile knative
+curl http://quote-function.default.127.0.0.1.sslip.io
+kubectl get pod
+kubectl delete -f knative/kservice.yml
+minikube stop --profile knative
+minikube delete --profile knative
+
+(quote-service)
+minikube start --profile knative
+./install-knative.sh
+kn version
+
+kn service create quote-service \
+   --image ghcr.io/prana12/quote-service \
+   --port 9101
+minikube tunnel --profile knative
+curl http://quote-service.default.127.0.0.1.sslip.io/quotes
+curl http://quote-service.default.127.0.0.1.sslip.io/quotes/random
+kn service delete quote-service  
+
+kubectl apply -f knative/kservice.yml
+kubectl get ksvc
+minikube tunnel --profile knative
+curl http://quote-service.default.127.0.0.1.sslip.io/quotes
+curl http://quote-service.default.127.0.0.1.sslip.io/quotes/random
+kubectl get pod
+kubectl delete -f knative/kservice.yml
+minikube stop --profile knative
+minikube delete --profile knative
